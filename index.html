@@ -47,7 +47,8 @@ textarea{resize:vertical}
 #app{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
 aside{position:sticky;top:0;height:100vh;background:var(--card);border-right:1px solid var(--bd);padding:18px 12px;display:flex;flex-direction:column;gap:22px}
 .brand{display:flex;align-items:center;gap:10px;font:700 14px var(--mono);padding:0 8px}
-.mk{display:grid;place-items:center;width:30px;height:30px;border:1px solid var(--bd);border-radius:8px;color:var(--neon);font-size:12px}
+.mk{display:grid;place-items:center;width:30px;height:30px;border:1px solid var(--bd);border-radius:8px;color:var(--neon);font-size:12px;flex:none}
+img.mk{object-fit:contain;padding:0;background:var(--bg);overflow:hidden}
 .brand small{color:var(--cy);font-weight:400;margin-left:auto}
 nav button{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;border-left:2px solid transparent;border-radius:0 8px 8px 0;color:var(--mut);padding:10px 12px;font-size:13px;cursor:pointer;text-align:left}
 nav button:hover{color:#fff}
@@ -91,6 +92,8 @@ td.ac{text-align:right;width:1%}
 .hs .m{flex:none;font-family:var(--mono)}.hs .s{flex:none;width:100px;text-align:right;color:var(--mut);font:12px var(--mono)}
 .hs li.ext{border-left-color:var(--pu)}.hs .ic{flex:none}
 label.ck{display:flex;align-items:center;gap:8px;margin:16px 0 0;color:var(--tx);font:14px Inter,system-ui,sans-serif;cursor:pointer}.ck input{width:auto}
+.qty{display:inline-flex;align-items:center;gap:2px}.qty b{min-width:30px;text-align:center;font:600 14px var(--mono)}.qty .ic{padding:4px 7px}.qty .ic:disabled{opacity:.3;cursor:default}
+.bar select{width:auto;max-width:220px}
 .lk{color:var(--cy);text-decoration:none}.lk:hover{text-decoration:underline}
 .note.warn{border-left-color:var(--amb)}.note b{color:var(--tx)}
 .welcome{display:block;font-size:clamp(28px,4vw,44px);line-height:1.15;margin:6px 0 4px}.welcome em{font-style:normal;color:var(--neon)}
@@ -134,7 +137,7 @@ nav button[aria-current=page]{border-top-color:var(--neon)}
 
 <div id="app" hidden>
   <aside>
-    <div class="brand"><span class="mk">MH</span>Maker Hub<small>admin</small></div>
+    <div class="brand"><img class="mk" src="images/logo.png" alt="Maker Hub" width="30" height="30" onerror="this.outerHTML='<span class=&quot;mk&quot;>MH</span>'">Maker Hub<small>admin</small></div>
     <nav id="nav" aria-label="Sections"></nav>
   </aside>
   <div>
@@ -151,38 +154,57 @@ const CFG = { url: 'https://fjcyadzqszdujjbwfrhu.supabase.co', key: 'sb_publisha
 const sb = window.supabase.createClient(CFG.url, CFG.key);
 const $ = s => document.querySelector(s);
 
-const L = { libelle:'Libellé', type:'Type', montant:'Montant', categorie:'Catégorie', date:'Date', email:'Email', pseudo:'Pseudo', role:'Rôle', created_at:'Créé le', titre:'Titre', statut:'Statut', niveau:'Niveau', nom:'Nom', responsable:'Responsable', contenu:'Contenu', description:'Description', lien_github:'Lien GitHub (optionnel)', lien:'Lien (optionnel)' };
+const L = { libelle:'Libellé', type:'Type', montant:'Montant', categorie:'Catégorie', date:'Date', email:'Email', pseudo:'Pseudo', role:'Grade', created_at:'Créé le', titre:'Titre', statut:'Statut', niveau:'Niveau', nom:'Nom', responsable:'Responsable', contenu:'Contenu', description:'Description', lien:'Lien', quantite:'Quantité', notes:'Note / Emplacement' };
+const CATS = ['Résistance','Condensateur','Circuit Intégré','Diode','Transistor','Potentiomètre','Inductance / Bobine','Connecteur','Module / Capteur','Autre'];
 const ST = { articles:['brouillon','publié','hors site','à retravailler','à supprimer'], formations:['planifié','en cours','publié'], projets:['idée','en cours','pause','terminé'] };
 const SECTIONS = {
   home:   { label:'Globale', title:'Vue globale', icon:'fa-house', cmd:'./status --all' },
-  budget: { label:'Budget', title:'Gestion budgétaire', icon:'fa-coins', cmd:'cat ./budget.csv', table:'budget', order:'date', add:'Nouvelle écriture',
+  budget: { label:'Budget', title:'Gestion budgétaire', icon:'fa-coins', cmd:'cat ./budget.csv', table:'budget', need:'budget', order:'date', add:'Nouvelle écriture',
     cols:['libelle','type','montant','categorie','date'],
     fields:[{k:'libelle',t:'text',req:1},{k:'type',t:'select',o:['recette','dépense']},{k:'montant',t:'number',req:1},{k:'externe',t:'checkbox',l:'Externe : offert ou payé par un tiers (non retiré du compte)'},{k:'categorie',t:'text'},{k:'date',t:'date'}] },
-  users:  { label:'Membres', title:'Gestion utilisateurs', icon:'fa-users', cmd:'ls ./users', table:'profiles', noAdd:true, noDel:true,
+  users:  { label:'Membres', title:'Gestion utilisateurs', icon:'fa-users', cmd:'ls ./users', table:'profiles', need:'membres', noAdd:true, noDel:true,
     cols:['email','pseudo','role','created_at'],
-    fields:[{k:'pseudo',t:'text'},{k:'email',t:'email',req:1},{k:'role',t:'select',o:['membre','admin']},{k:'password',t:'password',l:'Nouveau mot de passe (laisser vide pour ne pas le changer)'}] },
-  articles:{ label:'Articles', title:'Gestion articles', icon:'fa-pen-nib', cmd:'ls -la ./articles', table:'articles', add:'Nouvel article',
-    cols:['titre','statut','description','lien_github','created_at'],
-    fields:[{k:'titre',t:'text',req:1},{k:'description',t:'textarea'},{k:'lien_github',t:'url'},{k:'statut',t:'select',o:ST.articles},{k:'created_at',t:'date',l:'Date'}] },
-  formations:{ label:'Formation', title:'Gestion formation', icon:'fa-graduation-cap', cmd:'find ./formations -name "*.md"', table:'formations', add:'Nouvelle formation',
-    cols:['titre','niveau','statut','created_at'],
-    fields:[{k:'titre',t:'text',req:1},{k:'niveau',t:'select',o:['1','2','3']},{k:'statut',t:'select',o:ST.formations},{k:'created_at',t:'date',l:'Date'},{k:'description',t:'textarea'}] },
-  projets:{ label:'Projets', title:'Gestion projet', icon:'fa-rocket', cmd:'ls ./projets', table:'projets', add:'Nouveau projet',
+    fields:[{k:'pseudo',t:'text'},{k:'email',t:'email',req:1},{k:'role',t:'select',o:['membre','ingenieur','tresorier','projet','contenu','infra','admin'],l:'Grade'},{k:'password',t:'password',l:'Nouveau mot de passe (laisser vide pour ne pas le changer)'}] },
+  articles:{ label:'Articles', title:'Gestion articles', icon:'fa-pen-nib', cmd:'ls -la ./articles', table:'articles', need:'articles', add:'Nouvel article',
+    cols:['titre','statut','description','lien','created_at'],
+    fields:[{k:'titre',t:'text',req:1},{k:'description',t:'textarea'},{k:'lien',t:'text',link:1,l:'Lien sur le site (optionnel)',ph:'articles/mon-article.html'},{k:'statut',t:'select',o:ST.articles},{k:'created_at',t:'date',l:'Date'}] },
+  formations:{ label:'Formation', title:'Gestion formation', icon:'fa-graduation-cap', cmd:'find ./formations -name "*.md"', table:'formations', need:'formations', add:'Nouvelle formation',
+    cols:['titre','statut','description','lien','created_at'],
+    fields:[{k:'titre',t:'text',req:1},{k:'description',t:'textarea'},{k:'lien',t:'text',link:1,l:'Lien sur le site (optionnel)',ph:'formations/ma-formation.html'},{k:'statut',t:'select',o:ST.articles},{k:'created_at',t:'date',l:'Date'}] },
+  projets:{ label:'Projets', title:'Gestion projet', icon:'fa-rocket', cmd:'ls ./projets', table:'projets', need:'projets', add:'Nouveau projet',
     cols:['nom','responsable','statut','created_at'],
     fields:[{k:'nom',t:'text',req:1},{k:'responsable',t:'text'},{k:'statut',t:'select',o:ST.projets},{k:'created_at',t:'date',l:'Date'},{k:'description',t:'textarea'}] },
+  stock:{ label:'Stock', title:'Stock de composants', icon:'fa-microchip', cmd:'ls ./stock', table:'composants', need:'composants', add:'Nouveau composant', order:'nom', asc:true, filter:'categorie',
+    cols:['nom','categorie','quantite','notes'],
+    fields:[{k:'nom',t:'text',req:1},{k:'categorie',t:'select',o:CATS},{k:'quantite',t:'number',int:1,req:1},{k:'notes',t:'text'}] },
   achats:{ hidden:true, parent:'budget', label:'Achats', table:'achats', add:'Nouvel achat', cols:['libelle'],
-    fields:[{k:'libelle',t:'text',req:1},{k:'montant',t:'number',l:'Montant estimé (€)'},{k:'statut',t:'select',o:['à commander','commandé','reçu']},{k:'lien',t:'url'},{k:'created_at',t:'date',l:'Date'}] }
+    fields:[{k:'libelle',t:'text',req:1},{k:'montant',t:'number',l:'Montant estimé (€)'},{k:'statut',t:'select',o:['à commander','commandé','reçu']},{k:'lien',t:'url',l:'Lien (optionnel)'},{k:'created_at',t:'date',l:'Date'}] }
 };
 
 /* ───────── UI ───────── */
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const TONE = {'publié':'g','terminé':'g','recette':'g','admin':'g','en cours':'c','dépense':'r','brouillon':'a','idée':'a','planifié':'a','pause':'p','hors site':'c','à retravailler':'p','à supprimer':'r','à commander':'a','commandé':'c','reçu':'g'};
+const TONE = {'infra':'c','contenu':'p','projet':'a','tresorier':'a','ingenieur':'c','publié':'g','terminé':'g','recette':'g','admin':'g','en cours':'c','dépense':'r','brouillon':'a','idée':'a','planifié':'a','pause':'p','hors site':'c','à retravailler':'p','à supprimer':'r','à commander':'a','commandé':'c','reçu':'g'};
 const Dates = {
   fr: iso => iso ? String(iso).slice(0, 10).split('-').reverse().join('/') : '',
   iso(v) { const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(v); if (!m) return null; const d = new Date(`${m[3]}-${m[2]}-${m[1]}T12:00:00`); return d.getDate() === +m[1] && d.getMonth() + 1 === +m[2] ? `${m[3]}-${m[2]}-${m[1]}` : null; },
   mask(i) { const d = i.value.replace(/\D/g, '').slice(0, 8); i.value = d.slice(0, 2) + (d.length > 2 ? '/' + d.slice(2, 4) : '') + (d.length > 4 ? '/' + d.slice(4) : ''); }
 };
-const ROLES = { admin:'Administrateur', membre:'Membre' };
+const Links = {
+  // https://… ou chemin du site (articles/mon-article.html) ; refuse javascript:, data:, etc.
+  ok: v => /^https?:\/\/[^\s]+$/i.test(v) || /^\/?[\w\-./#?=&%~+]+$/.test(v) && !v.startsWith('//')
+};
+const ROLES = { admin:'Administrateur', infra:'Responsable Infrastructure', contenu:'Responsable Contenu', projet:'Responsable Projet', tresorier:'Trésorier', ingenieur:'Ingénieur', membre:'Membre' };
+const ACCESS = {
+  admin:['budget','membres','articles','formations','projets','composants'],
+  infra:['budget','membres','articles','formations','projets','composants'],
+  contenu:['articles','formations','projets'],
+  projet:['projets','composants','budget'],
+  tresorier:['composants','budget'],
+  ingenieur:['composants'],
+  membre:[]
+};
+const allowed = k => k === 'home' || (ACCESS[role] || []).includes(SECTIONS[k]?.need);
+const canEdit = k => k !== 'users' || role === 'admin';
 const UI = {
   lab: v => ROLES[v] || (String(v).charAt(0).toUpperCase() + String(v).slice(1)),
   eur: n => new Intl.NumberFormat('fr-BE', {style:'currency', currency:'EUR'}).format(n || 0),
@@ -193,19 +215,19 @@ const UI = {
   head: (s, t) => `<div class="hd"><span class="pr"><b>admin@maker-hub</b>:$ ${s.cmd}</span><span class="mut">[${s.label}]</span></div><h1>${t || s.title}</h1>`,
   fail: e => `<div class="note err">Erreur : ${esc(e.message)}. Si une table est introuvable, exécutez <b>setup.sql</b> dans l'éditeur SQL de Supabase.</div>`,
   cell(k, v, r) {
-    if (v == null || v === '') return '<span class="mut">—</span>';
+    if (k !== 'quantite' && (v == null || v === '')) return '<span class="mut">—</span>';
     if (k === 'created_at') return esc(new Date(v).toLocaleDateString('fr-BE'));
     if (k === 'date') return esc(new Date(v + 'T00:00').toLocaleDateString('fr-BE'));
+    if (k === 'quantite') return `<span class="qty"><button class="ic" data-act="dec" data-id="${esc(r.id)}" aria-label="Retirer 1"${v <= 0 ? ' disabled' : ''}><i class="fa-solid fa-minus"></i></button><b class="${v <= 0 ? 'neg' : ''}">${esc(v)}</b><button class="ic" data-act="inc" data-id="${esc(r.id)}" aria-label="Ajouter 1"><i class="fa-solid fa-plus"></i></button></span>${v <= 0 ? ' <span class="b r">Épuisé</span>' : ''}`;
     if (k === 'montant') { const d = r.type === 'dépense'; if (d && r.externe) return `<span class="mut">${UI.eur(v)}</span> <span class="b p">Externe</span>`; return `<span class="${d ? 'neg' : 'pos'}">${d ? '−' : '+'}${UI.eur(v)}</span>`; }
     if (['statut', 'type', 'role'].includes(k)) return UI.badge(v);
-    if (k === 'lien_github') return /^https?:\/\//i.test(v) ? `<a class="lk" href="${esc(v)}" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-github"></i> Ouvrir</a>` : esc(v);
-    if (k === 'niveau') return 'Niveau ' + esc(v);
+    if (k === 'lien') return Links.ok(v) ? `<a class="lk" href="${esc(v)}" target="_blank" rel="noopener noreferrer" title="${esc(v)}"><i class="fa-solid fa-arrow-up-right-from-square"></i> Ouvrir</a>` : esc(v);
     return esc(v);
   }
 };
 
 /* ───────── Données (CRUD générique) ───────── */
-let user = null, cache = {}, current = 'home';
+let user = null, role = 'membre', cache = {}, current = 'home';
 const view = $('#view'), dlg = $('#dlg');
 const Data = {
   log: (action, cible) => sb.from('logs').insert({ action, cible, user_email: user.email }).then(() => {}, () => {}),
@@ -231,19 +253,21 @@ const Data = {
 /* ───────── Vues ───────── */
 const Views = {
   async home() {
+    if (role !== 'admin') return Views.homeStaff();
     view.innerHTML = UI.head(SECTIONS.home) + '<p class="mut">Chargement…</p>';
     const cnt = (t, f) => { let q = sb.from(t).select('*', { count:'exact', head:true }); if (f) q = q.eq(f[0], f[1]); return q.then(r => r.error ? '?' : r.count); };
-    const [art, brou, form, proj, cours, mem, bud, logs, me] = await Promise.all([
+    const [art, brou, form, proj, cours, mem, bud, logs, me, comp, vide] = await Promise.all([
       cnt('articles'), cnt('articles', ['statut','brouillon']), cnt('formations'), cnt('projets'), cnt('projets', ['statut','en cours']), cnt('profiles'),
       sb.from('budget').select('montant,type'), sb.from('logs').select('*').order('created_at', { ascending:false }).limit(8),
-      sb.from('profiles').select('pseudo').eq('id', user.id).maybeSingle()
+      sb.from('profiles').select('pseudo').eq('id', user.id).maybeSingle(),
+      cnt('composants'), cnt('composants', ['quantite', 0])
     ]);
     const name = me.data?.pseudo || user.email.split('@')[0];
     const rows = bud.data || [], sum = t => rows.filter(r => r.type === t).reduce((a, r) => a + Number(r.montant), 0);
     const solde = sum('recette') - sum('dépense');
     const status = UI.kv([
       ['Articles', `${art} <span class="mut">(${brou} en brouillon)</span>`],
-      ['Formations', form], ['Projets', `${proj} <span class="mut">(${cours} en cours)</span>`], ['Membres', mem],
+      ['Formations', form], ['Projets', `${proj} <span class="mut">(${cours} en cours)</span>`], ['Membres', mem], ['Composants', `${comp} <span class="mut">(${vide} épuisés)</span>`],
       ['Solde', UI.eur(solde), solde < 0 ? 'neg' : 'pos']
     ]);
     const list = logs.data?.length
@@ -251,6 +275,18 @@ const Views = {
       : '<p class="mut" style="margin:0">Aucune activité enregistrée. Les créations, modifications et suppressions apparaîtront ici.</p>';
     const warn = '<div class="note warn"><i class="fa-solid fa-shield-halved"></i> <b>Espace confidentiel.</b> Les informations de ce panneau sont privées : elles ne doivent être ni copiées, ni partagées, ni diffusées en dehors de l\'équipe d\'administration.</div>';
     view.innerHTML = UI.head(SECTIONS.home, `<span class="welcome">Bienvenue <em>${esc(name)}</em>&nbsp;!</span>`) + warn + `<div class="g2"><div>${UI.win('./status --all', status)}</div><div>${UI.win('tail ./logs', list)}</div></div>`;
+  },
+
+  async homeStaff() {
+    const { data: me } = await sb.from('profiles').select('pseudo').eq('id', user.id).maybeSingle();
+    const name = me?.pseudo || user.email.split('@')[0];
+    const tabs = Object.entries(SECTIONS).filter(([k, s]) => k !== 'home' && !s.hidden && allowed(k)).map(([, s]) => s.title);
+    const warn = '<div class="note warn"><i class="fa-solid fa-shield-halved"></i> <b>Espace confidentiel.</b> Les informations de ce panneau sont privées : elles ne doivent être ni copiées, ni partagées, ni diffusées en dehors de l\'équipe.</div>';
+    const body = `<p style="margin:0 0 12px">Votre grade : ${UI.badge(role)}</p>
+      <p style="margin:0 0 8px">Vous avez accès à :</p>
+      <ul style="margin:0 0 14px;padding-left:20px">${tabs.map(t => `<li>${esc(t)}</li>`).join('')}</ul>
+      <p class="mut" style="margin:0">Utilisez le menu pour ouvrir une section. Pour un accès supplémentaire, demandez à un administrateur.</p>`;
+    view.innerHTML = UI.head(SECTIONS.home, `<span class="welcome">Bienvenue <em>${esc(name)}</em>&nbsp;!</span>`) + warn + UI.win('whoami', body);
   },
 
   budget(data, ach) {
@@ -289,8 +325,10 @@ const Views = {
 
   async list(key) {
     const s = SECTIONS[key];
-    view.innerHTML = UI.head(s) + '<p class="mut">Chargement…</p>';
-    const { data, error } = await sb.from(s.table).select('*').order(s.order || 'created_at', { ascending:false }).limit(200);
+    const keep = view.dataset.key === key && $('#q') ? { q: $('#q').value, c: $('#qc')?.value || '', y: window.scrollY } : null;
+    view.dataset.key = key;
+    if (!keep) view.innerHTML = UI.head(s) + '<p class="mut">Chargement…</p>';
+    const { data, error } = await sb.from(s.table).select('*').order(s.order || 'created_at', { ascending: !!s.asc }).limit(200);
     if (error) { view.innerHTML = UI.head(s) + UI.fail(error); return; }
     cache[key] = Object.fromEntries(data.map(r => [r.id, r]));
     let extra = '';
@@ -299,12 +337,14 @@ const Views = {
       cache.achats = a.error ? {} : Object.fromEntries(a.data.map(r => [r.id, r]));
       extra = Views.budget(data, a.error ? null : a.data);
     }
-    const note = s.noAdd ? '<div class="note"><i class="fa-solid fa-lock"></i> Aucun compte ne se crée depuis ce panneau : ajoutez-les dans Supabase (Authentication → Users). Ici, vous modifiez le pseudo, l’email, le rôle et le mot de passe.</div>' : '';
-    const bar = `<div class="bar"><input type="search" id="q" placeholder="Filtrer la liste" aria-label="Filtrer la liste">${s.noAdd ? '' : `<button class="btn pri" data-act="new"><i class="fa-solid fa-plus"></i> ${s.add}</button>`}</div>`;
-    const body = data.length ? data.map(r => `<tr>${s.cols.map(k => `<td>${UI.cell(k, r[k], r)}</td>`).join('')}<td class="ac"><button class="ic" data-act="edit" data-id="${esc(r.id)}" aria-label="Modifier"><i class="fa-solid fa-pen"></i></button>${s.noDel ? '' : `<button class="ic del" data-act="del" data-id="${esc(r.id)}" aria-label="Supprimer"><i class="fa-solid fa-trash"></i></button>`}</td></tr>`).join('')
+    const note = !canEdit(key) ? '<div class="note"><i class="fa-solid fa-lock"></i> Lecture seule. Seuls les administrateurs modifient les membres et leurs grades.</div>' : s.noAdd ? '<div class="note"><i class="fa-solid fa-lock"></i> Aucun compte ne se crée depuis ce panneau : ajoutez-les dans Supabase (Authentication → Users). Ici, vous modifiez le pseudo, l’email, le grade et le mot de passe.</div>' : '';
+    const bar = `<div class="bar"><input type="search" id="q" placeholder="Filtrer la liste" aria-label="Filtrer la liste">${s.filter ? `<select id="qc" aria-label="Filtrer par catégorie"><option value="">Toutes les catégories</option>${CATS.map(c => `<option>${esc(c)}</option>`).join('')}</select>` : ''}${s.noAdd ? '' : `<button class="btn pri" data-act="new"><i class="fa-solid fa-plus"></i> ${s.add}</button>`}</div>`;
+    const body = data.length ? data.map(r => `<tr${s.filter ? ` data-cat="${esc(r[s.filter])}"` : ''}>${s.cols.map(k => `<td>${UI.cell(k, r[k], r)}</td>`).join('')}<td class="ac">${canEdit(key) ? `<button class="ic" data-act="edit" data-id="${esc(r.id)}" aria-label="Modifier"><i class="fa-solid fa-pen"></i></button>${s.noDel ? '' : `<button class="ic del" data-act="del" data-id="${esc(r.id)}" aria-label="Supprimer"><i class="fa-solid fa-trash"></i></button>`}` : ''}</td></tr>`).join('')
       : `<tr><td colspan="${s.cols.length + 1}" class="mut">${s.noAdd ? 'Aucun utilisateur. Les profils apparaissent à la première connexion.' : `Rien ici pour le moment. Cliquez sur « ${s.add} » pour commencer.`}</td></tr>`;
     view.innerHTML = UI.head(s) + extra + note + bar + `<div class="tw"><table><thead><tr>${s.cols.map(k => `<th>${L[k]}</th>`).join('')}<th></th></tr></thead><tbody>${body}</tbody></table></div>`;
-    $('#q').addEventListener('input', e => { const v = e.target.value.toLowerCase(); view.querySelectorAll('tbody tr').forEach(tr => tr.hidden = !tr.textContent.toLowerCase().includes(v)); });
+    const apply = () => { const v = $('#q').value.toLowerCase(), c = $('#qc')?.value || ''; view.querySelectorAll('tbody tr').forEach(tr => tr.hidden = !tr.textContent.toLowerCase().includes(v) || (c && tr.dataset.cat !== undefined && tr.dataset.cat !== c)); };
+    $('#q').addEventListener('input', apply); $('#qc')?.addEventListener('change', apply);
+    if (keep) { $('#q').value = keep.q; if ($('#qc')) $('#qc').value = keep.c; apply(); window.scrollTo(0, keep.y); }
   },
 
   form(key, id) {
@@ -314,10 +354,10 @@ const Views = {
       if (f.t === 'date' && v) v = Dates.fr(String(v).length === 10 ? v : new Date(v).toLocaleDateString('sv-SE'));
       const a = `id="f_${f.k}" name="${f.k}"${f.req ? ' required' : ''}`;
       if (f.t === 'checkbox') return `<label class="ck" for="f_${f.k}"><input ${a} type="checkbox"${v ? ' checked' : ''}> ${esc(f.l)}</label>`;
-      const c = f.t === 'select' ? `<select ${a}>${f.o.map(o => `<option value="${esc(o)}"${o == v ? ' selected' : ''}>${esc(f.k === 'niveau' ? 'Niveau ' + o : UI.lab(o))}</option>`).join('')}</select>`
+      const c = f.t === 'select' ? `<select ${a}>${f.o.map(o => `<option value="${esc(o)}"${o == v ? ' selected' : ''}>${esc(UI.lab(o))}</option>`).join('')}</select>`
         : f.t === 'textarea' ? `<textarea ${a} rows="6">${esc(v)}</textarea>`
         : f.t === 'date' ? `<input ${a} type="text" inputmode="numeric" maxlength="10" placeholder="jj/mm/aaaa" autocomplete="off" data-date value="${esc(v)}">`
-        : `<input ${a} type="${f.t}"${f.t === 'number' ? ' step="0.01" min="0"' : ''}${f.t === 'password' ? ' autocomplete="new-password" minlength="10"' : ''} value="${esc(v)}">`;
+        : `<input ${a} type="${f.t}"${f.t === 'number' ? (f.int ? ' step="1" min="0" inputmode="numeric"' : ' step="0.01" min="0"') : ''}${f.t === 'password' ? ' autocomplete="new-password" minlength="10"' : ''}${f.ph ? ` placeholder="${esc(f.ph)}"` : ''} value="${esc(v)}">`;
       return `<label for="f_${f.k}">${f.l || L[f.k]}</label>${c}`;
     };
     dlg.innerHTML = `<form id="f"><h2>${id ? 'Modifier' : s.add}</h2>${s.fields.map(field).join('')}<div class="act"><button type="button" class="btn" data-close>Annuler</button><button class="btn pri">Enregistrer</button></div></form>`;
@@ -327,7 +367,7 @@ const Views = {
     $('#f').onsubmit = async e => {
       e.preventDefault();
       const fd = new FormData(e.target), row = {};
-      let bad = false;
+      let bad = false, badLink = false;
       s.fields.forEach(f => {
         if (f.t === 'checkbox') { row[f.k] = fd.get(f.k) !== null; return; }
         const v = f.t === 'password' ? String(fd.get(f.k)) : String(fd.get(f.k)).trim();
@@ -336,8 +376,10 @@ const Views = {
           const d = Dates.iso(v); if (!d) { bad = true; return; }
           row[f.k] = f.k === 'created_at' ? d + 'T12:00:00' : d; return;
         }
-        row[f.k] = v === '' ? null : f.t === 'number' ? Number(v) : v;
+        if (f.link && v && !Links.ok(v)) { badLink = true; return; }
+        row[f.k] = v === '' ? null : f.t === 'number' ? (f.int ? parseInt(v, 10) : Number(v)) : v;
       });
+      if (badLink) return UI.toast('Lien invalide : chemin du site (articles/page.html) ou adresse https://', true);
       if (bad) return UI.toast('Date invalide : utilisez jj/mm/aaaa', true);
       if (key === 'users' && row.role === 'admin' && cache.users[id]?.role !== 'admin' && !confirm(`Donner les droits complets d’administrateur à ${row.email} ?`)) return;
       const err = key === 'users' ? await Data.saveUser(id, row) : await Data.save(key, id, row);
@@ -351,13 +393,14 @@ const Views = {
 /* ───────── Navigation ───────── */
 const Nav = {
   build() {
-    $('#nav').innerHTML = Object.entries(SECTIONS).filter(([, s]) => !s.hidden).map(([k, s]) => `<button data-go="${k}"><i class="fa-solid ${s.icon}"></i><span>${s.label}</span></button>`).join('');
+    $('#nav').innerHTML = Object.entries(SECTIONS).filter(([k, s]) => !s.hidden && allowed(k)).map(([k, s]) => `<button data-go="${k}"><i class="fa-solid ${s.icon}"></i><span>${s.label}</span></button>`).join('');
   },
   go() {
     const k = location.hash.slice(1);
-    current = SECTIONS[k] && !SECTIONS[k].hidden ? k : 'home';
+    current = SECTIONS[k] && !SECTIONS[k].hidden && allowed(k) ? k : 'home';
     document.querySelectorAll('#nav button').forEach(b => b.toggleAttribute('aria-current', b.dataset.go === current) || b.removeAttribute('aria-current'));
     document.querySelectorAll('#nav button').forEach(b => b.dataset.go === current && b.setAttribute('aria-current', 'page'));
+    view.dataset.key = '';
     current === 'home' ? Views.home() : Views.list(current);
   }
 };
@@ -366,6 +409,16 @@ window.addEventListener('hashchange', () => user && Nav.go());
 view.addEventListener('click', async e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
   const { act, id, k } = b.dataset, key = k || current;
+  if (act === 'inc' || act === 'dec') {
+    const r = cache[key]?.[id]; if (!r) return;
+    const q = Math.max(0, Number(r.quantite) + (act === 'inc' ? 1 : -1));
+    b.disabled = true;
+    const { error } = await sb.from(SECTIONS[key].table).update({ quantite: q }).eq('id', id);
+    if (error) { b.disabled = false; return UI.toast(error.message, true); }
+    r.quantite = q; Data.log(act === 'inc' ? 'stock +1' : 'stock −1', `${SECTIONS[key].table} · ${r.nom} (${q})`);
+    b.closest('td').innerHTML = UI.cell('quantite', q, r); return;
+  }
+  if (!allowed(SECTIONS[key].parent || key) || !canEdit(key)) return;
   if (act === 'new') Views.form(key);
   if (act === 'edit') Views.form(key, id);
   if (act === 'del' && confirm(`Supprimer « ${cache[key]?.[id]?.[SECTIONS[key].cols[0]] ?? 'cet élément'} » ? Cette action est définitive.`)) {
@@ -379,15 +432,17 @@ dlg.addEventListener('click', e => { if (e.target.closest('[data-close]') || e.t
 const Auth = {
   fails: 0, lock: 0,
   msg: t => $('#lm').textContent = t,
-  showLogin() { user = null; view.innerHTML = ''; $('#app').hidden = true; $('#login').hidden = false; $('#pw').value = ''; },
+  showLogin() { user = null; role = 'membre'; view.innerHTML = ''; $('#app').hidden = true; $('#login').hidden = false; $('#pw').value = ''; },
   async enter(session) {
-    // La vraie protection est la RLS côté base : ici on vérifie seulement que le compte est admin.
-    const { data, error } = await sb.from('admins').select('user_id').eq('user_id', session.user.id).maybeSingle();
-    if (error || !data) {
+    // La vraie protection est la RLS côté base : ici on lit seulement le grade pour adapter l'affichage.
+    const { data, error } = await sb.rpc('my_role');
+    if (error || !ACCESS[data] || data === 'membre') {
       await sb.auth.signOut(); Auth.showLogin();
-      return Auth.msg(error ? 'Droits impossibles à vérifier (table « admins » absente ? voir setup.sql).' : "Ce compte n'a pas les droits d'administration.");
+      return Auth.msg(error ? 'Grade impossible à vérifier (lancez grades.sql dans Supabase).' : "Aucun grade n'est attribué à ce compte. Demandez à un administrateur.");
     }
-    user = session.user; $('#who').textContent = user.email;
+    user = session.user; role = data;
+    $('#who').textContent = `${user.email} · ${ROLES[role]}`;
+    $('.brand small').textContent = role === 'admin' ? 'admin' : 'équipe';
     $('#login').hidden = true; $('#app').hidden = false; Nav.build(); Nav.go();
   },
   async submit(e) {
